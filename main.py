@@ -6,6 +6,7 @@ from seleniumbase import cdp_driver
 from playwright.async_api import async_playwright, expect, Page, BrowserContext
 
 BASE_URL = "https://www.betsson.es"
+MONEY = True
 
 def get_creds(money: bool) -> tuple:
     print("Getting creds")
@@ -28,11 +29,18 @@ async def do_login(page: Page, creds: tuple):
     submit_btn = page.get_by_test_id("account-login-btn-1-button")
     await submit_btn.click()
 
-    dialog_btn = page.get_by_test_id("dialog-close-button")
-    has_dialog = await dialog_btn.count() == 1
-    if has_dialog:
+    auth_btn = page.get_by_test_id("dialog-close-button")
+    has_auth = await auth_btn.count() == 1
+    if has_auth:
         print("Closing key dialog")
-        await dialog_btn.click()
+        await auth_btn.click()
+
+    
+    consent_btn = page.get_by_test_id("login-consent-cta-btn-1")
+    has_consent = await consent_btn.count() == 1
+    if has_consent:
+        print("Closing key dialog")
+        await consent_btn.click()
 
 async def capture_balance(page: Page) -> float:
     print("Getting balance")
@@ -49,24 +57,37 @@ async def get_game(page: Page) -> tuple:
 
     return (await anchor.inner_text(), await anchor.get_attribute("href"))
 
-async def handle_safety(page: Page):
-    renew_btn = page.get_by_test_id("start-new-session-buttons-btn-2")
-    has_dialog = await renew_btn.count() == 1
-    if has_dialog:
-        print("Doing relogin")
-        await renew_btn.click()
+async def handle_safety(page: Page, initialBalance: float):
+    blocked = page.locator("gaming-game_dgoj_session_blocked")
+    if blocked.is_visible():
+        print("BLOQUEO")
+        # Caso: Vuelves a jugar después de terminar tu sesión en poco tiempo
+        adict_btn = page.get_by_test_id("start-new-session-buttons-btn-2-button")
+        if adict_btn.is_visible():
+            await adict_btn.click()
+            await set_session_timer(page)
 
-async def play_game(page: Page, game: tuple, initialBalance: float):
+async def set_session_timer(page: Page):
+    await page.get_by_test_id("session-settings_time-limit-option-18000").click()
+    await page.get_by_test_id("session-settings_spending-limit-option-100").click()
+    await page.get_by_test_id("session-settings_submit-button-btn-1-button").click()
+
+async def play_game(page: Page, game: tuple, money: bool, initialBalance: float):
     print(f"Playing {game[0]}")
-    await page.goto(BASE_URL + game[1])
+    await page.goto(BASE_URL + game[1], wait_until="domcontentloaded")
 
-    canvas = page.locator("canvas")
-    await expect(canvas).to_have_count(1)
-    print("Canvas ok")
+    await handle_safety(page, initialBalance)
+
+    frame = page.locator(".iframe-container")
+    frame_bytes = await frame.screenshot(type="png")
+
+    print(f"Captured frame image size: {len(frame_bytes)} bytes")
+    with open('out.png', 'wb') as f:
+        f.write(frame_bytes)
 
 async def main():
     load_dotenv()
-    creds = get_creds(money=True)
+    creds = get_creds(money=MONEY)
 
     driver = await cdp_driver.start_async(headless=False)
 
@@ -91,8 +112,9 @@ async def main():
 
                 game = await get_game(page)
 
-                await handle_safety(page)
-                await play_game(page, game, balance)
+                await play_game(page, game, MONEY, balance)
+
+                await asyncio.sleep(1000)
             finally:
                 await browser.close()
     finally:
