@@ -479,4 +479,7 @@ def img_to_action(img):
     action = find_game_action(img)
     if(len(action) > 1):
         raise TooManyButtonsException(action)
-    return action[0]
+    elif action == None:
+        return None
+    else:
+        return action[0]
