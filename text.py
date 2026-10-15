@@ -12,7 +12,7 @@ def main():
             continue
         print(img_to_apuesta(img))
 
-regex = re.compile("(?<=(apuesta|jug(a|r)da).*)(\\d|\\.|,)+", re.IGNORECASE)
+regex = re.compile("(?<=(apuesta|jug(a|r)da).*)\\d+(\\.|,)*\\d*", re.IGNORECASE)
 def img_to_apuesta(img):
     extracted_text = pytesseract.image_to_string(img)
     match = regex.search(extracted_text)
