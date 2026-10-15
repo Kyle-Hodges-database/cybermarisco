@@ -58,6 +58,8 @@ pip install -r requirements.txt
 ```
 </details>
 
+También pueden ser necesarias instalar programas externos, como `tesseract-ocr`.
+
 ### Variables de entorno
 En `.env.example` están las variables de entorno usadas en el programa.
 
