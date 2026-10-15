@@ -1,9 +1,13 @@
 from dotenv import load_dotenv
+from io import BytesIO
 from os import getenv
 import asyncio
 import random
 from seleniumbase import cdp_driver
-from playwright.async_api import async_playwright, expect, Page, BrowserContext
+from playwright.async_api import async_playwright, expect, Page, BrowserContext, TimeoutError
+from PIL import Image
+from PruebaDeteccion import img_to_action, TooManyButtonsException
+from text import img_to_apuesta
 
 BASE_URL = "https://www.betsson.es"
 MONEY = True
@@ -13,6 +17,15 @@ def get_creds(money: bool) -> tuple:
     if money:
         return (getenv('ACCOUNT_MONEY_EMAIL'), getenv('ACCOUNT_MONEY_PASSWORD'))
     return (getenv('ACCOUNT_BROKE_EMAIL'), getenv('ACCOUNT_BROKE_PASSWORD'))
+
+async def close_cookies(page: Page):
+    accept_cookies_btn = page.locator("#onetrust-accept-btn-handler")
+    try:
+        await accept_cookies_btn.wait_for(state="visible", timeout=10000)
+        print("Accepting cookies")
+        await accept_cookies_btn.click()
+    except TimeoutError:
+        pass
 
 async def do_login(page: Page, creds: tuple):
     print("Doing login")
@@ -36,7 +49,7 @@ async def do_login(page: Page, creds: tuple):
         await auth_btn.click()
 
     
-    consent_btn = page.get_by_test_id("login-consent-cta-btn-1")
+    consent_btn = page.get_by_test_id("logiimage_stream = io.BytesIO(image_bytes)n-consent-cta-btn-1")
     has_consent = await consent_btn.count() == 1
     if has_consent:
         print("Closing key dialog")
@@ -51,7 +64,7 @@ async def capture_balance(page: Page) -> float:
 
 async def get_game(page: Page) -> tuple:
     slider = page.get_by_test_id("preview-section-HomepageCasino.quick-links")
-    anchors = await slider.locator("a").all()
+    anchors = await slider.locator("a.preview-item").all()
 
     anchor = random.choice(anchors)
 
@@ -59,13 +72,16 @@ async def get_game(page: Page) -> tuple:
 
 async def handle_safety(page: Page, initialBalance: float):
     blocked = page.locator("gaming-game_dgoj_session_blocked")
-    if blocked.is_visible():
+    try:
+        await blocked.wait_for(state="visible", timeout=10000)
         print("BLOQUEO")
         # Caso: Vuelves a jugar después de terminar tu sesión en poco tiempo
         adict_btn = page.get_by_test_id("start-new-session-buttons-btn-2-button")
-        if adict_btn.is_visible():
-            await adict_btn.click()
-            await set_session_timer(page)
+        await adict_btn.wait_for(state="visible", timeout=10000)
+        await adict_btn.click()
+        await set_session_timer(page)
+    except TimeoutError:
+        pass
 
 async def set_session_timer(page: Page):
     await page.get_by_test_id("session-settings_time-limit-option-18000").click()
@@ -73,17 +89,39 @@ async def set_session_timer(page: Page):
     await page.get_by_test_id("session-settings_submit-button-btn-1-button").click()
 
 async def play_game(page: Page, game: tuple, money: bool, initialBalance: float):
-    print(f"Playing {game[0]}")
+    print(f"Playing {game[0]}: {game[1]}")
     await page.goto(BASE_URL + game[1], wait_until="domcontentloaded")
+
+    await close_cookies(page)
 
     await handle_safety(page, initialBalance)
 
     frame = page.locator(".iframe-container")
-    frame_bytes = await frame.screenshot(type="png")
 
-    print(f"Captured frame image size: {len(frame_bytes)} bytes")
-    with open('out.png', 'wb') as f:
-        f.write(frame_bytes)
+    print("Starting loop")
+
+    i = 0
+    badButtonsTimes = 0
+    currentBalance = initialBalance
+    while i < 20 and badButtonsTimes < 5:
+        frame_bytes = await frame.screenshot(type="png")
+        image_stream = BytesIO(frame_bytes)
+        img = Image.open(image_stream)
+
+        apuesta = img_to_apuesta(img)
+        print(apuesta)
+
+        try:
+            action = img_to_action(img)
+            await frame.click(position={"x": action[0], "y": action[1]})
+            print(action)
+        except TooManyButtonsException:
+            print("Too many buttons")
+            badButtonsTimes += 1
+
+        await asyncio.sleep(5.0)
+
+        i += 1
 
 async def main():
     load_dotenv()
@@ -113,8 +151,6 @@ async def main():
                 game = await get_game(page)
 
                 await play_game(page, game, MONEY, balance)
-
-                await asyncio.sleep(1000)
             finally:
                 await browser.close()
     finally:

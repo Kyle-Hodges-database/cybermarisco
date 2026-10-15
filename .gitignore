@@ -2,3 +2,4 @@
 /.env
 /session/
 /downloaded_files/
+__pycache__
