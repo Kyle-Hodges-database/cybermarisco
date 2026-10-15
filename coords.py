@@ -2,10 +2,14 @@ from __future__ import print_function
 import glob
 import numpy as np
 import cv2 as cv
+from enum import Enum
+
+TipoDeBoton = Enum('TipoDeBoton', [('TOCAR_ELEMENTO',1) ,('BOTON_BONUS',2), ('CONTINUAR',3), ('INICIAR',4), ('GIRAR', 5), ('GIRAR_CONTINUAR', 6), ('GIRAR_TRANSPARENTE', 7), ('CLICK_CONTINUAR', 8), ('BOTON_GIRO', 9)])
+
 
 
 # =====================================================================
-# 1. DETECTOR DE SELECCIÓN DE CALABAZAS ("ELIJA UNA CALABAZA")
+# 1. DETECTOR DE SELECCIÓN ENTRE ELEMENTOS
 # =====================================================================
 def detect_pumpkins(hsv, w, h):
     orange_mask = cv.inRange(hsv, np.array([5, 140, 160]), np.array([26, 255, 255]))
@@ -32,7 +36,7 @@ def detect_pumpkins(hsv, w, h):
         stem_roi = green_mask[max(0, int(y - 0.18 * bh)):min(h, int(y + 0.22 * bh)),
                               max(0, int(cx - 0.25 * bw)):min(w, int(cx + 0.25 * bw))]
         if stem_roi.size > 0 and (np.count_nonzero(stem_roi) / float(stem_roi.size)) > 0.08:
-            pumpkins.append((cx, cy, int((bw + bh) * 0.26), "TOCAR CALABAZA"))
+            pumpkins.append((cx, cy, int((bw + bh) * 0.26), TipoDeBoton.TOCAR_ELEMENTO))
 
     if len(pumpkins) >= 3:
         pumpkins.sort(key=lambda p: (p[1], p[0]))
@@ -41,7 +45,7 @@ def detect_pumpkins(hsv, w, h):
 
 
 # =====================================================================
-# 2. DETECTOR DE BOTÓN DORADO CENTRAL DE BONUS (TRIÁNGULO ROJO '▶')
+# 2. DETECTOR DE BOTÓN DORADO CENTRAL DE BONUS
 # =====================================================================
 def detect_golden_bonus_button(hsv, w, h):
     x1, y1 = int(w * 0.40), int(h * 0.60)
@@ -70,12 +74,12 @@ def detect_golden_bonus_button(hsv, w, h):
 
             if np.any(ring_gold):
                 if (np.count_nonzero(gold_mask[ring_gold]) / float(np.count_nonzero(ring_gold))) > 0.50:
-                    return [(x1 + rcx, y1 + rcy, int(r_tri * 2.1), "BOTON BONUS DORADO")]
+                    return [(x1 + rcx, y1 + rcy, int(r_tri * 2.1), TipoDeBoton.BOTON_BONUS)]
     return []
 
 
 # =====================================================================
-# 3. DETECTOR DE PANTALLA DE CARGA CENTRAL (BOTÓN '>' SOBRE FONDO OSCURO)
+# 3. DETECTOR DE PANTALLA DE CARGA CENTRAL
 # =====================================================================
 def detect_center_loading_button(gray, w, h):
     if (np.count_nonzero(cv.Canny(gray, 50, 150)) / float(w * h)) > 0.04:
@@ -91,7 +95,7 @@ def detect_center_loading_button(gray, w, h):
     )
     if circles is not None:
         cx, cy, r = np.round(circles[0, 0]).astype("int")
-        return [(x1 + cx, y1 + cy, r, "CONTINUAR (CARGA)")]
+        return [(x1 + cx, y1 + cy, r, TipoDeBoton.CONTINUAR)]
     return []
 
 
@@ -109,12 +113,12 @@ def detect_green_start_button(hsv, w, h):
         area = cv.contourArea(cnt)
         (rcx, rcy), r = cv.minEnclosingCircle(cnt)
         if int(h * 0.08) <= r <= int(h * 0.13) and (area / (np.pi * r * r)) > 0.75:
-            return [(x1 + int(rcx), y1 + int(rcy), int(r), "INICIAR JUEGO")]
+            return [(x1 + int(rcx), y1 + int(rcy), int(r), TipoDeBoton.INICIAR)]
     return []
 
 
 # =====================================================================
-# 5A. DETECTOR RÁPIDO DE FLECHA CIRCULAR BLANCA (ESTÁNDAR / NARANJA / GRIS)
+# 5A. DETECTOR RÁPIDO DE FLECHA CIRCULAR
 # =====================================================================
 def evaluate_white_arrow_candidate(white_mask, roi_hsv, cx, cy, r_a):
     """
@@ -256,17 +260,17 @@ def detect_white_arrow_spin(hsv, w, h):
         score = evaluate_white_arrow_candidate(white_mask, roi_hsv, cx, cy, r_a)
         if score > best_score:
             best_score = score
-            best_btn = (abs_x, abs_y, int(r_a * 1.48), "GIRAR / CONTINUAR")
+            best_btn = (abs_x, abs_y, int(r_a * 1.48), TipoDeBoton.GIRAR)
 
     return [best_btn] if best_btn is not None else []
 
 
 # =====================================================================
-# 5B. DETECTOR DE BOTÓN OSCURO TRANSLÚCIDO (EJ. BIG BASS HALLOWEEN)
+# 5B. DETECTOR DE BOTÓN OSCURO TRANSLÚCIDO
 # =====================================================================
 def detect_dark_translucent_spin(hsv, gray, w, h):
     """
-    Detecta botones oscuros con flechas grises tenues (ej. Big Bass Halloween)
+    Detecta botones oscuros con flechas grises tenues
     restringiendo la búsqueda a la barra inferior para excluir calderos u objetos laterales.
     """
     x1, y1 = int(w * 0.71), int(h * 0.78)
@@ -297,19 +301,19 @@ def detect_dark_translucent_spin(hsv, gray, w, h):
         if not (np.any(moat) and np.any(lr_arrows) and np.any(tb_dark)):
             continue
 
-        # El foso del botón debe ser muy oscuro y acromático (descarta calderos con poción verde)
+        # El foso del botón debe ser muy oscuro y acromático
         if np.median(roi_hsv[:, :, 2][moat]) > 55 or np.median(roi_hsv[:, :, 1][moat]) > 65:
             continue
 
         # Las dos flechas grises laterales deben ser más claras que la zona superior/inferior
         if float(np.mean(roi_gray[lr_arrows])) > float(np.mean(roi_gray[tb_dark])) + 12.0:
-            return [(x1 + rcx, y1 + rcy, r, "GIRAR / CONTINUAR")]
+            return [(x1 + rcx, y1 + rcy, r, TipoDeBoton.GIRAR_CONTINUAR)]
 
     return []
 
 
 # =====================================================================
-# 5C. DETECTOR DE BOTÓN ULTRA-TRANSPARENTE (EJ. BAMBOO PANDITS TENUE)
+# 5C. DETECTOR DE BOTÓN ULTRA-TRANSPARENTE
 # =====================================================================
 def detect_transparent_bamboo_spin(hsv, w, h):
     x1, y1 = int(w * 0.82), int(h * 0.58)
@@ -344,7 +348,7 @@ def detect_transparent_bamboo_spin(hsv, w, h):
         if not (np.any(arrow_ring) and np.any(center_hole) and np.any(outer_bg)):
             continue
 
-        # Bloquear fondos muy saturados (evita falsos positivos en escaparates de neón o piernas)
+        # Bloquear fondos muy saturados
         if np.median(roi_s[arrow_ring]) > 62:
             continue
 
@@ -355,13 +359,13 @@ def detect_transparent_bamboo_spin(hsv, w, h):
             score = diff_center + diff_outer
             if score > best_score:
                 best_score = score
-                best = (x1 + rcx, y1 + rcy, r, "GIRAR (TRANSPARENTE)")
+                best = (x1 + rcx, y1 + rcy, r, TipoDeBoton.GIRAR_TRANSPARENTE)
 
     return [best] if best is not None else []
 
 
 # =====================================================================
-# 6. DETECTOR DE PANTALLAS "PULSA / HAGA CLIC PARA CONTINUAR"
+# 6. DETECTOR DE PANTALLAS CLICK PARA CONTINUAR
 # =====================================================================
 def detect_tap_anywhere_prompt(gray, w, h):
     x1, y1 = int(w * 0.25), int(h * 0.80)
@@ -381,12 +385,12 @@ def detect_tap_anywhere_prompt(gray, w, h):
         bx, by, bw, bh = cv.boundingRect(cnt)
         cx_rel = (bx + bw * 0.5) / float(roi_w)
         if 0.42 <= cx_rel <= 0.58 and bw >= 0.35 * roi_w and (bw / float(max(1, bh))) >= 4.5:
-            return [(x1 + bx + bw // 2, y1 + by + bh // 2, int(h * 0.05), "TOCAR PANTALLA PARA CONTINUAR")]
+            return [(x1 + bx + bw // 2, y1 + by + bh // 2, int(h * 0.05), TipoDeBoton.CLICK_CONTINUAR)]
     return []
 
 
 # =====================================================================
-# PIPELINE PRINCIPAL JERÁRQUICO DE BAJO COSTE
+# PIPELINE PRINCIPAL
 # =====================================================================
 def find_game_action(img_bgr):
     open_cv_image = np.array(img_bgr)
@@ -399,10 +403,10 @@ def find_game_action(img_bgr):
         white_crop = cv.inRange(hsv_crop, np.array([0, 0, 185]), np.array([180, 65, 255]))
         score = evaluate_white_arrow_candidate(white_crop, hsv_crop, orig_w // 2, orig_h // 2, int(min(orig_h, orig_w) * 0.28))
         if score > 0:
-            return [(orig_w // 2, orig_h // 2, int(min(orig_h, orig_w) * 0.44), "RECORTE BOTON GIRO")]
+            return [(orig_w // 2, orig_h // 2, int(min(orig_h, orig_w) * 0.44), TipoDeBoton.BOTON_GIRO)]
         return []
 
-    # Reescalado único a ancho 640 para minimizar el coste computacional (~9x más rápido)
+    # Reescalado único a ancho 640 para minimizar el coste computacional
     work_w = 640
     if orig_w > work_w:
         scale = work_w / float(orig_w)
@@ -416,31 +420,31 @@ def find_game_action(img_bgr):
     gray = cv.cvtColor(work_img, cv.COLOR_BGR2GRAY)
     hsv = cv.cvtColor(work_img, cv.COLOR_BGR2HSV)
 
-    # Prioridad 1: Selección de calabazas
+    # Prioridad 1: Selección entre opciones
     actions = detect_pumpkins(hsv, work_w, work_h)
-    # Prioridad 2: Botón dorado central de Bonus
+    # Prioridad 2: Botón central de Bonus
     if not actions:
         actions = detect_golden_bonus_button(hsv, work_w, work_h)
     # Prioridad 3: Botón central '>' en pantalla de carga
     if not actions:
         actions = detect_center_loading_button(gray, work_w, work_h)
-    # Prioridad 4: Botón circular verde "INICIAR JUEGO"
+    # Prioridad 4: Botón circular verde "INICIAR TIRADA"
     if not actions:
         actions = detect_green_start_button(hsv, work_w, work_h)
     # Prioridad 5A: Botón de giro con flecha(s) circular(es) blanca(s)
     if not actions:
         actions = detect_white_arrow_spin(hsv, work_w, work_h)
-    # Prioridad 5B: Botón de giro oscuro translúcido (ej. Big Bass Halloween)
+    # Prioridad 5B: Botón de giro oscuro translúcido
     if not actions:
         actions = detect_dark_translucent_spin(hsv, gray, work_w, work_h)
-    # Prioridad 5C: Botón de giro ultra-transparente (ej. Bamboo Pandits tenue)
+    # Prioridad 5C: Botón de giro ultra-transparente
     if not actions:
         actions = detect_transparent_bamboo_spin(hsv, work_w, work_h)
-    # Prioridad 6: Pantalla de "Pulsa / Haga clic para continuar"
+    # Prioridad 6: Pantalla de clic para continuar
     if not actions:
         actions = detect_tap_anywhere_prompt(gray, work_w, work_h)
 
-    # Reescalar coordenadas a la resolución original de la imagen
+    # Reescalar coordenadas a la resolucion original de la imagen
     inv_scale = 1.0 / scale
     return [(int(x * inv_scale), int(y * inv_scale), int(r * inv_scale), label) for (x, y, r, label) in actions]
 
@@ -469,12 +473,14 @@ def main():
 if __name__ == '__main__':
     main()
 
+#Excepción si detecta mas de un boton en la pantalla
 class TooManyButtonsException(Exception):
     def __innit__(self,actions, msg="Too many buttons."):
         self.actions = actions
         self.msg = msg
         super().__init__(self.msg)
 
+#Con la imagen, sabe si tiene que clickar y donde
 def img_to_action(img):
     action = find_game_action(img)
     if action is None:
