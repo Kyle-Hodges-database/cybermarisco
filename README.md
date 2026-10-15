@@ -15,7 +15,7 @@ Usa la librería `pytesseract` y una expresión regular para ello.
 Usa la librería `playwright` + `seleniumbase` en su modo Stealthy para poder evitar problemas de autentificación debido a Cloudfront.
 
 ### Tests mock
-`report.py` ejecuta tests mock usando capturas de pantalla (encontradas en `./examples`).
+`report.py` ejecuta tests mock usando capturas de pantalla elegidas anteriormente (encontradas en `./examples`).
 
 ## Flujo de funcionamiento
 1. El navegador se inicia y accede a `https://www.betsson.es`.
