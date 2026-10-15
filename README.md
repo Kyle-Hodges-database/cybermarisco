@@ -31,6 +31,8 @@ Usa la librería `playwright` + `seleniumbase` en su modo Stealthy para poder ev
 10. ??
 11. Profit
 
+Todas estas acciones son registradas en `output/app.log`.
+
 ## Instalación
 
 <details>
