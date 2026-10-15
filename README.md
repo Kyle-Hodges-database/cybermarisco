@@ -1,4 +1,4 @@
-# Tests automatizados del frontend de Bettson (CyberMariscos)
+# CyberMariscos - Tests automatizados del frontend de Bettson (Malackathon)
 
 ## Instalación
 
@@ -21,3 +21,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 </details>
+
+## Funcionamiento
+
+`text.py` es el módulo de extracción de texto, es usado para obtener el coste de una tirada desde bytes de un canvas.
+Usa la librería `pytesseract` y una expresión regular para ello.
+
+`coords.py` es el módulo de detección de botones, es usado para detectar las coordenadas de cualquier botón que pueda avanzar el juego, a partir de bytes del canvas. Usa `opencv`
