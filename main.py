@@ -1,42 +1,17 @@
 from dotenv import load_dotenv
 from os import getenv
 import asyncio
-import browser_cookie3
 import random
+from seleniumbase import cdp_driver
 from playwright.async_api import async_playwright, expect, Page, BrowserContext
 
-DOMAIN = "betsson.es"
 BASE_URL = "https://www.betsson.es"
-
-def get_chrome_cookies(domain: str) -> list[dict]:
-    print("Getting cookies")
-    cookies = []
-    cj = browser_cookie3.chromium(domain_name=domain)
-    
-    for c in cj:
-        cookies.append({
-            "name": c.name,
-            "value": c.value,
-            "domain": c.domain,
-            "path": c.path,
-            "expires": c.expires if c.expires else -1,
-            "httpOnly": bool(c._rest.get("HttpOnly", False)),
-            "secure": bool(c.secure),
-            "sameSite": "Lax"
-        })
-    return cookies
 
 def get_creds(money: bool) -> tuple:
     print("Getting creds")
     if money:
         return (getenv('ACCOUNT_MONEY_EMAIL'), getenv('ACCOUNT_MONEY_PASSWORD'))
     return (getenv('ACCOUNT_BROKE_EMAIL'), getenv('ACCOUNT_BROKE_PASSWORD'))
-
-async def load_fetch_patch(page: Page):
-    print("Injecting fetch patch")
-    with open('scripts/fetch.js', 'r', encoding='utf-8') as f:
-        script = f.read()
-        await page.add_init_script(script)
 
 async def do_login(page: Page, creds: tuple):
     print("Doing login")
@@ -78,33 +53,35 @@ async def main():
     load_dotenv()
     creds = get_creds(money=True)
 
-    async with async_playwright() as p:
-        p.selectors.set_test_id_attribute("data-test-id")
+    driver = await cdp_driver.start_async(headless=False)
 
-        browser = await p.chromium.launch_persistent_context(
-            user_data_dir="./session",
-            headless=False
-        )
+    try:
+        endpoint_url = driver.get_endpoint_url()
 
-        cookies = get_chrome_cookies(DOMAIN)
-        await browser.add_cookies(cookies)
+        async with async_playwright() as p:
+            p.selectors.set_test_id_attribute("data-test-id")
 
-        page = await browser.new_page()
-        await page.goto(BASE_URL, wait_until="domcontentloaded")
+            try:
+                browser = await p.chromium.connect_over_cdp(endpoint_url)
 
-        balance = await capture_balance(page)
-        print(f"Total initial balance: {balance}")
+                context = browser.contexts[0]
+                page = context.pages[0] if context.pages else await context.new_page()
 
-        game = await get_game(page)
+                await page.goto(BASE_URL, wait_until="domcontentloaded")
 
-        print(f"Playing {game[0]}")
-        await page.goto(BASE_URL + game[1])
+                await do_login(page, creds)
 
-        await handle_safety(page)
+                balance = await capture_balance(page)
+                print(f"Total initial balance: {balance}")
 
-        await asyncio.sleep(100)
+                game = await get_game(page)
 
-        await browser.close()
+                print(f"Playing {game[0]}")
+                await page.goto(BASE_URL + game[1])
+            finally:
+                await browser.close()
+    finally:
+        driver.quit()
 
 if __name__ == "__main__":
     asyncio.run(main())
