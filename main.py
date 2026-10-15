@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 from io import BytesIO
 from os import getenv
+import argparse
+import logging
 import asyncio
 import random
 from seleniumbase import cdp_driver
@@ -10,10 +12,11 @@ from PruebaDeteccion import img_to_action, TooManyButtonsException
 from text import img_to_apuesta
 
 BASE_URL = "https://www.betsson.es"
-MONEY = True
+
+logger = logging.getLogger("betsson")
 
 def get_creds(money: bool) -> tuple:
-    print("Getting creds")
+    logger.info(f"Fetching creds for user with money={money}")
     if money:
         return (getenv('ACCOUNT_MONEY_EMAIL'), getenv('ACCOUNT_MONEY_PASSWORD'))
     return (getenv('ACCOUNT_BROKE_EMAIL'), getenv('ACCOUNT_BROKE_PASSWORD'))
@@ -22,13 +25,13 @@ async def close_cookies(page: Page):
     accept_cookies_btn = page.locator("#onetrust-accept-btn-handler")
     try:
         await accept_cookies_btn.wait_for(state="visible", timeout=10000)
-        print("Accepting cookies")
+        logger.info("Closing cookie banner")
         await accept_cookies_btn.click()
     except TimeoutError:
         pass
 
 async def do_login(page: Page, creds: tuple):
-    print("Doing login")
+    logger.info("Attempting login")
     login_btn = page.get_by_test_id("btn-1").get_by_role("button", name="Iniciar sesión")
     await expect(login_btn).to_have_count(1)
     await login_btn.click()
@@ -45,18 +48,18 @@ async def do_login(page: Page, creds: tuple):
     auth_btn = page.get_by_test_id("dialog-close-button")
     has_auth = await auth_btn.count() == 1
     if has_auth:
-        print("Closing key dialog")
+        logger.info("Closing 'use key' dialog")
         await auth_btn.click()
 
     
     consent_btn = page.get_by_test_id("logiimage_stream = io.BytesIO(image_bytes)n-consent-cta-btn-1")
     has_consent = await consent_btn.count() == 1
     if has_consent:
-        print("Closing key dialog")
+        logger.info(f"Closing consent dialog")
         await consent_btn.click()
 
 async def capture_balance(page: Page) -> float:
-    print("Getting balance")
+    logger.info(f"Trying to fetch initial balance")
     async with page.expect_response("**/api/v2/wallet/balance*") as response_info:
         response = await response_info.value
         data = await response.json()
@@ -74,7 +77,7 @@ async def handle_safety(page: Page, initialBalance: float):
     blocked = page.locator("gaming-game_dgoj_session_blocked")
     try:
         await blocked.wait_for(state="visible", timeout=10000)
-        print("BLOQUEO")
+        logger.info("Handling anti-addiction mecanisims")
         # Caso: Vuelves a jugar después de terminar tu sesión en poco tiempo
         adict_btn = page.get_by_test_id("start-new-session-buttons-btn-2-button")
         await adict_btn.wait_for(state="visible", timeout=10000)
@@ -88,8 +91,9 @@ async def set_session_timer(page: Page):
     await page.get_by_test_id("session-settings_spending-limit-option-100").click()
     await page.get_by_test_id("session-settings_submit-button-btn-1-button").click()
 
-async def play_game(page: Page, game: tuple, money: bool, initialBalance: float):
-    print(f"Playing {game[0]}: {game[1]}")
+async def play_game(page: Page, game: tuple, initialBalance: float):
+    gameFiltered = game[0].replace("\n", " ")
+    logger.info(f"Playing {gameFiltered}")
     await page.goto(BASE_URL + game[1], wait_until="domcontentloaded")
 
     await close_cookies(page)
@@ -97,8 +101,6 @@ async def play_game(page: Page, game: tuple, money: bool, initialBalance: float)
     await handle_safety(page, initialBalance)
 
     frame = page.locator(".iframe-container")
-
-    print("Starting loop")
 
     i = 0
     badButtonsTimes = 0
@@ -109,14 +111,21 @@ async def play_game(page: Page, game: tuple, money: bool, initialBalance: float)
         img = Image.open(image_stream)
 
         apuesta = img_to_apuesta(img)
-        print(apuesta)
+        if apuesta is not None:
+            logger.info(f"Detected bet amount: {apuesta}")
+        else:
+            logger.warning("No bet amount detected")
 
         try:
             action = img_to_action(img)
-            await frame.click(position={"x": action[0], "y": action[1]})
-            print(action)
+            logger.info(action)
+            if action is not None:
+                logger.info(f"Action detected: {action}")
+                await frame.click(position={"x": action[0], "y": action[1]})
+            else:
+                logger.warning("No action coords detected")
         except TooManyButtonsException:
-            print("Too many buttons")
+            logger.warning("Too many possible buttons, skipping")
             badButtonsTimes += 1
 
         await asyncio.sleep(5.0)
@@ -124,10 +133,21 @@ async def play_game(page: Page, game: tuple, money: bool, initialBalance: float)
         i += 1
 
 async def main():
+    logging.basicConfig(filename='out.log', level=logging.INFO)
     load_dotenv()
-    creds = get_creds(money=MONEY)
 
-    driver = await cdp_driver.start_async(headless=False)
+    parser = argparse.ArgumentParser(
+                    prog='GameTester',
+                    description='Game checker for Betsson ',
+                    epilog='Made with <3 (and energy drinks) by CyberMariscos')
+    
+    parser.add_argument('--headless', help="Run in headless mode", action='store_true', default=False)
+    parser.add_argument('-m', '--money', help="Use account with money", action='store_true', default=True)
+
+    args = parser.parse_args()
+
+    creds = get_creds(money=args.money)
+    driver = await cdp_driver.start_async(headless=args.headless)
 
     try:
         endpoint_url = driver.get_endpoint_url()
@@ -146,11 +166,11 @@ async def main():
                 await do_login(page, creds)
 
                 balance = await capture_balance(page)
-                print(f"Total initial balance: {balance}")
+                logger.info(f"Total initial balance: {balance}")
 
                 game = await get_game(page)
 
-                await play_game(page, game, MONEY, balance)
+                await play_game(page, game, balance)
             finally:
                 await browser.close()
     finally:
