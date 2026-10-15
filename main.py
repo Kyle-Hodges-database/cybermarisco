@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 from io import BytesIO
 from os import getenv
+from sys import stdout
+from pathlib import Path
 import argparse
 import logging
 import asyncio
@@ -12,6 +14,7 @@ from PruebaDeteccion import img_to_action, TooManyButtonsException
 from text import img_to_apuesta
 
 BASE_URL = "https://www.betsson.es"
+OUTPUT_PATH = "./output"
 
 logger = logging.getLogger("betsson")
 
@@ -51,7 +54,6 @@ async def do_login(page: Page, creds: tuple):
         logger.info("Closing 'use key' dialog")
         await auth_btn.click()
 
-    
     consent_btn = page.get_by_test_id("logiimage_stream = io.BytesIO(image_bytes)n-consent-cta-btn-1")
     has_consent = await consent_btn.count() == 1
     if has_consent:
@@ -107,6 +109,9 @@ async def play_game(page: Page, game: tuple, initialBalance: float):
     currentBalance = initialBalance
     while i < 20 and badButtonsTimes < 5:
         frame_bytes = await frame.screenshot(type="png")
+        with open(f"{OUTPUT_PATH}/screenshot{i}.png", 'wb') as f:
+            f.write(frame_bytes)
+
         image_stream = BytesIO(frame_bytes)
         img = Image.open(image_stream)
 
@@ -121,7 +126,10 @@ async def play_game(page: Page, game: tuple, initialBalance: float):
             logger.info(action)
             if action is not None:
                 logger.info(f"Action detected: {action}")
-                await frame.click(position={"x": action[0], "y": action[1]})
+                try:
+                    await frame.click(position={"x": action[0], "y": action[1]})
+                except TimeoutError:
+                    logger.warning(f"Tried clicking button at {action[0]},{action[1]} but timed out, womp womp")
             else:
                 logger.warning("No action coords detected")
         except TooManyButtonsException:
@@ -133,7 +141,23 @@ async def play_game(page: Page, game: tuple, initialBalance: float):
         i += 1
 
 async def main():
-    logging.basicConfig(filename='out.log', level=logging.INFO)
+    # Setup logging
+    output = Path(OUTPUT_PATH)
+    try:
+        output.rmdir()
+    except FileNotFoundError:
+        pass
+
+    output.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(f"{OUTPUT_PATH}/app.log", encoding="utf-8"),
+            logging.StreamHandler(stdout)
+        ]
+    )
+    
     load_dotenv()
 
     parser = argparse.ArgumentParser(
