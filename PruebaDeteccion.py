@@ -395,7 +395,7 @@ def find_game_action(img_bgr):
 
     # Caso 0: Recortes individuales pequeños de botones (< 300x300 px)
     if max(orig_h, orig_w) < 300:
-        hsv_crop = cv.cvtColor(img_bgr, cv.COLOR_BGR2HSV)
+        hsv_crop = cv.cvtColor(open_cv_image, cv.COLOR_BGR2HSV)
         white_crop = cv.inRange(hsv_crop, np.array([0, 0, 185]), np.array([180, 65, 255]))
         score = evaluate_white_arrow_candidate(white_crop, hsv_crop, orig_w // 2, orig_h // 2, int(min(orig_h, orig_w) * 0.28))
         if score > 0:
@@ -407,11 +407,11 @@ def find_game_action(img_bgr):
     if orig_w > work_w:
         scale = work_w / float(orig_w)
         work_h = int(orig_h * scale)
-        work_img = cv.resize(img_bgr, (work_w, work_h), interpolation=cv.INTER_AREA)
+        work_img = cv.resize(open_cv_image, (work_w, work_h), interpolation=cv.INTER_AREA)
     else:
         scale = 1.0
         work_w, work_h = orig_w, orig_h
-        work_img = img_bgr
+        work_img = open_cv_image
 
     gray = cv.cvtColor(work_img, cv.COLOR_BGR2GRAY)
     hsv = cv.cvtColor(work_img, cv.COLOR_BGR2HSV)
