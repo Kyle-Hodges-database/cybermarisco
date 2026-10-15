@@ -20,12 +20,16 @@ OUTPUT_PATH = "./output"
 logger = logging.getLogger("betsson")
 
 def get_creds(money: bool) -> tuple:
+    """Get credentials from env."""
+
     logger.info(f"Fetching creds for user with money={money}")
     if money:
         return (getenv('ACCOUNT_MONEY_EMAIL'), getenv('ACCOUNT_MONEY_PASSWORD'))
     return (getenv('ACCOUNT_BROKE_EMAIL'), getenv('ACCOUNT_BROKE_PASSWORD'))
 
 async def close_cookies(page: Page):
+    """Close cookie banner."""
+
     accept_cookies_btn = page.locator("#onetrust-accept-btn-handler")
     try:
         await accept_cookies_btn.wait_for(state="visible", timeout=10000)
@@ -35,6 +39,8 @@ async def close_cookies(page: Page):
         pass
 
 async def do_login(page: Page, creds: tuple):
+    """Try doing login."""
+
     logger.info("Attempting login")
     login_btn = page.get_by_test_id("btn-1").get_by_role("button", name="Iniciar sesión")
     await expect(login_btn).to_have_count(1)
@@ -55,13 +61,18 @@ async def do_login(page: Page, creds: tuple):
         logger.info("Closing 'use key' dialog")
         await auth_btn.click()
 
-    consent_btn = page.get_by_test_id("logiimage_stream = io.BytesIO(image_bytes)n-consent-cta-btn-1")
+    # FIXME: Somehow "logiimage_stream = io.BytesIO(image_bytes)n-consent-cta-btn-1" was there as a string.
+    # This was 100% my fault, we have like 15min left so I'm assuming the correct value is what is below.
+    # ¯\_(ツ)_/¯
+    consent_btn = page.get_by_test_id("login-consent-cta-btn-1")
     has_consent = await consent_btn.count() == 1
     if has_consent:
         logger.info(f"Closing consent dialog")
         await consent_btn.click()
 
 async def capture_balance(page: Page) -> float:
+    """Get balance intercepting API response."""
+
     logger.info(f"Trying to fetch initial balance")
     async with page.expect_response("**/api/v2/wallet/balance*") as response_info:
         response = await response_info.value
@@ -69,6 +80,8 @@ async def capture_balance(page: Page) -> float:
         return data['balance']['totalAmount']
 
 async def get_game(page: Page) -> tuple:
+    """Fetch random game from list."""
+
     slider = page.get_by_test_id("preview-section-HomepageCasino.quick-links")
     anchors = await slider.locator("a.preview-item").all()
 
@@ -77,6 +90,8 @@ async def get_game(page: Page) -> tuple:
     return (await anchor.inner_text(), await anchor.get_attribute("href"))
 
 async def handle_safety(page: Page, initialBalance: float):
+    """Try to follow workflow for anti-addiction mecanisms."""
+
     blocked = page.locator("gaming-game_dgoj_session_blocked")
     try:
         await blocked.wait_for(state="visible", timeout=10000)
@@ -93,6 +108,8 @@ async def handle_safety(page: Page, initialBalance: float):
         pass
 
 async def play_game(page: Page, game: tuple, initialBalance: float):
+    """Run game and check for elements."""
+
     gameFiltered = game[0].replace("\n", " ")
     logger.info(f"Playing {gameFiltered}")
     await page.goto(BASE_URL + game[1], wait_until="domcontentloaded")
@@ -140,6 +157,8 @@ async def play_game(page: Page, game: tuple, initialBalance: float):
         i += 1
 
 async def main():
+    """Main entrypoint"""
+
     # Setup logging
     output = Path(OUTPUT_PATH)
     if output.exists():
