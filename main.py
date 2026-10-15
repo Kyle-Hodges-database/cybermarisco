@@ -7,10 +7,11 @@ import argparse
 import logging
 import asyncio
 import random
+import shutil
 from seleniumbase import cdp_driver
 from playwright.async_api import async_playwright, expect, Page, BrowserContext, TimeoutError
 from PIL import Image
-from PruebaDeteccion import img_to_action, TooManyButtonsException
+from coords import img_to_action, TooManyButtonsException
 from text import img_to_apuesta
 
 BASE_URL = "https://www.betsson.es"
@@ -141,10 +142,8 @@ async def play_game(page: Page, game: tuple, initialBalance: float):
 async def main():
     # Setup logging
     output = Path(OUTPUT_PATH)
-    try:
-        output.rmdir()
-    except FileNotFoundError:
-        pass
+    if output.exists():
+        shutil.rmtree(output)
 
     output.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
