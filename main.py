@@ -124,7 +124,7 @@ async def play_game(page: Page, game: tuple, initialBalance: float):
             action = img_to_action(img)
             logger.info(action)
             if action is not None:
-                logger.info(f"Action detected: {action}")
+                logger.info(f"Action detected: {action[0]},{action[1]} as type {action[3]}")
                 try:
                     await frame.click(position={"x": action[0], "y": action[1]})
                 except TimeoutError:
