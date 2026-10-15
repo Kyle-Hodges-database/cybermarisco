@@ -55,6 +55,16 @@ pip install -r requirements.txt
 ```
 </details>
 
+### Variables de entorno
+En `.env.example` están las variables de entorno usadas en el programa.
+
+| Key | Descripción |
+| :--: | :--: |
+| ACCOUNT_MONEY_EMAIL | Correo electrónico de usuario con dinero |
+| ACCOUNT_MONEY_PASSWORD | Contraseña de usuario con dinero |
+| ACCOUNT_BROKE_EMAIL | Correo electrónico de usuario muerto de hambre |
+| ACCOUNT_BROKE_PASSWORD | Contraseña de usuario muerto de hambre |
+
 ## Ejecución
 ### Principal
 ```
