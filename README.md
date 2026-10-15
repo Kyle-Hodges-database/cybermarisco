@@ -1,4 +1,5 @@
 # CyberMariscos - Tests automatizados del frontend de Bettson (Malackathon)
+![Image](.github/lets-go-gambling.gif)
 
 ## Componentes
 ### Visión por Computador
