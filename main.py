@@ -80,18 +80,16 @@ async def handle_safety(page: Page, initialBalance: float):
     try:
         await blocked.wait_for(state="visible", timeout=10000)
         logger.info("Handling anti-addiction mecanisims")
-        # Caso: Vuelves a jugar después de terminar tu sesión en poco tiempo
+
+        # Case: You try to play again after finishing your session not so long ago
         adict_btn = page.get_by_test_id("start-new-session-buttons-btn-2-button")
         await adict_btn.wait_for(state="visible", timeout=10000)
         await adict_btn.click()
-        await set_session_timer(page)
+        await page.get_by_test_id("session-settings_time-limit-option-18000").click()
+        await page.get_by_test_id("session-settings_spending-limit-option-100").click()
+        await page.get_by_test_id("session-settings_submit-button-btn-1-button").click()
     except TimeoutError:
         pass
-
-async def set_session_timer(page: Page):
-    await page.get_by_test_id("session-settings_time-limit-option-18000").click()
-    await page.get_by_test_id("session-settings_spending-limit-option-100").click()
-    await page.get_by_test_id("session-settings_submit-button-btn-1-button").click()
 
 async def play_game(page: Page, game: tuple, initialBalance: float):
     gameFiltered = game[0].replace("\n", " ")
