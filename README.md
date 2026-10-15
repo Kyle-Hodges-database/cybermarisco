@@ -1,24 +1,23 @@
-# Cybermariscos
+# Tests automatizados del frontend de Bettson (CyberMariscos)
+
 ## Instalación
+
+<details>
+<summary>Windows</summary>
+
 ```bash
 python3 -m venv .venv
-```
-
-
-En Linux:
-```bash
-source .venv/bin/activate
-```
-
-En Windows:
-```bash
-venv/bin/Activate.ps1
-```
-
-
-```bash
+.\venv\bin\Activate.ps1
 pip install -r requirements.txt
 ```
+</details>
 
+<details>
+<summary>Linux</summary>
 
-Ea a currar niños
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+</details>
