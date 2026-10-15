@@ -174,6 +174,11 @@ async def play_game(page: Page, game: tuple, initialBalance: float):
 async def main():
     """Main entrypoint"""
 
+    # arte ascii, generado en https://patorjk.com/software/taag/
+    print("\033[0;36m▓▀▀\033[0;36;47m▓\033[0;37m \033[0;36m█\033[0;37m  \033[0;36m█\033[0;37m \033[0;36m█▄▄▄\033[0;37m \033[0;36m▓▀▀\033[0;36;47m▓\033[0;37m \033[0;36;47m▓\033[0;36m▀▀█\033[0;37m \033[0;36m▓▀\033[0;36;47m▓\033[0;36m▀█\033[0;37m   \033[0;36m▀▀▓\033[0;37m \033[0;36;47m▓\033[0;36m▀▀█\033[0;37m \033[0;36m█\033[0;37m \033[0;36m█▀▀\033[0;37m  \033[0;36m▓▀▀\033[0;36;47m▓\033[0;37m \033[0;36m▓▀▀\033[0;36;47m▓\033[0;37m \033[0;36m█▀▀\033[0;37m \033[0m")
+    print("\033[0;36m█\033[0;37m    \033[0;36m▀█▀▀\033[0;37m \033[0;36m█\033[0;37m  \033[0;36m█\033[0;37m \033[0;36m█▄▄█\033[0;37m \033[0;36m█\033[0;37m    \033[0;36m█\033[0;37m \033[0;36m█\033[0;37m \033[0;36m▀█\033[0;37m \033[0;36m█▀▀█\033[0;37m \033[0;36m█\033[0;37m    \033[0;36m█\033[0;37m \033[0;36m▀▀▀█\033[0;37m \033[0;36m█\033[0;37m    \033[0;36m█\033[0;37m  \033[0;36m█\033[0;37m \033[0;36m▀▀▀█\033[0m")
+    print("\033[0;36m█▄▄▓\033[0;37m  \033[0;36;47m▓\033[0;37m   \033[0;36m█▄▄\033[0;36;47m▓\033[0;37m \033[0;36m█▄▄\033[0;37m  \033[0;36m█\033[0;37m    \033[0;36m█\033[0;37m \033[0;36m▀\033[0;37m  \033[0;36m█\033[0;37m \033[0;36m▓▄▄\033[0;36;47m▓\033[0;37m \033[0;36m█\033[0;37m    \033[0;36m█\033[0;37m \033[0;36;47m▓\033[0;36m▄▄▓\033[0;37m \033[0;36m█▄▄▓\033[0;37m \033[0;36m█▄▄▓\033[0;37m \033[0;36;47m▓\033[0;36m▄▄▓\033[0m\n")
+
     # Setup logging
     output = Path(OUTPUT_PATH)
     if output.exists():
@@ -188,14 +193,14 @@ async def main():
             logging.StreamHandler(stdout)
         ]
     )
-    
+
     load_dotenv()
 
     parser = argparse.ArgumentParser(
                     prog='GameTester',
                     description='Game checker for Betsson ',
                     epilog='Made with <3 (and energy drinks) by CyberMariscos')
-    
+
     parser.add_argument('--headless', help="Run in headless mode", action='store_true', default=False)
     parser.add_argument('-m', '--money', help="Use account with money", action='store_true', default=True)
 
