@@ -1,0 +1,29 @@
+name: 'Tests'
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Importar repositorio'
+        uses: actions/checkout@v7
+
+      - name: 'Instalar Python'
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: 'Crear archivo .env'
+        run: touch .env
+
+      - name: 'Ejecutar tests'
+        run: 'python report.py'
+        with:
+          ACCOUNT_MONEY_EMAIL: ${{ secrets.ACCOUNT_MONEY_EMAIL }}
+          ACCOUNT_MONEY_PASSWORD: ${{ secrets.ACCOUNT_MONEY_PASSWORD }}
+          ACCOUNT_BROKE_EMAIL: ${{ secrets.ACCOUNT_BROKE_EMAIL }}
+          ACCOUNT_BROKE_PASSWORD: ${{ secrets.ACCOUNT_BROKE_PASSWORD }}
