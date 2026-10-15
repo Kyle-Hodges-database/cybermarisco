@@ -389,7 +389,9 @@ def detect_tap_anywhere_prompt(gray, w, h):
 # PIPELINE PRINCIPAL JERÁRQUICO DE BAJO COSTE
 # =====================================================================
 def find_game_action(img_bgr):
-    orig_h, orig_w = img_bgr.shape[:2]
+    open_cv_image = np.array(img_bgr)
+    open_cv_image = open_cv_image[:, :, ::-1].copy()
+    orig_h, orig_w = open_cv_image.shape[:2]
 
     # Caso 0: Recortes individuales pequeños de botones (< 300x300 px)
     if max(orig_h, orig_w) < 300:
