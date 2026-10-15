@@ -28,6 +28,12 @@ async def do_login(page: Page, creds: tuple):
     submit_btn = page.get_by_test_id("account-login-btn-1-button")
     await submit_btn.click()
 
+    dialog_btn = page.get_by_test_id("dialog-close-button")
+    has_dialog = await dialog_btn.count() == 1
+    if has_dialog:
+        print("Closing key dialog")
+        await dialog_btn.click()
+
 async def capture_balance(page: Page) -> float:
     print("Getting balance")
     async with page.expect_response("**/api/v2/wallet/balance*") as response_info:
@@ -44,10 +50,19 @@ async def get_game(page: Page) -> tuple:
     return (await anchor.inner_text(), await anchor.get_attribute("href"))
 
 async def handle_safety(page: Page):
-    is_dialog_visible = await page.get_by_test_id("fds-dialog").is_visible()
+    renew_btn = page.get_by_test_id("start-new-session-buttons-btn-2")
+    has_dialog = await renew_btn.count() == 1
+    if has_dialog:
+        print("Doing relogin")
+        await renew_btn.click()
 
-    if is_dialog_visible:
-        print("Dialog exists and is visible")
+async def play_game(page: Page, game: tuple, initialBalance: float):
+    print(f"Playing {game[0]}")
+    await page.goto(BASE_URL + game[1])
+
+    canvas = page.locator("canvas")
+    await expect(canvas).to_have_count(1)
+    print("Canvas ok")
 
 async def main():
     load_dotenv()
@@ -76,8 +91,8 @@ async def main():
 
                 game = await get_game(page)
 
-                print(f"Playing {game[0]}")
-                await page.goto(BASE_URL + game[1])
+                await handle_safety(page)
+                await play_game(page, game, balance)
             finally:
                 await browser.close()
     finally:
