@@ -444,7 +444,7 @@ def find_game_action(img_bgr):
 
 
 def main():
-    files = sorted(glob.glob('./examples/test/*.png') + glob.glob('./examples/test/*.jpg'))
+    files = sorted(glob.glob('./examples/*.png') + glob.glob('./examples/*.jpg'))
     for fn in files:
         img = cv.imread(fn)
         if img is None:
