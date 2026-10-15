@@ -22,6 +22,12 @@ pip install -r requirements.txt
 ```
 </details>
 
+## Ejecución de tests
+
+```bash
+python3 report.py
+```
+
 ## Funcionamiento
 
 `text.py` es el módulo de extracción de texto, es usado para obtener el coste de una tirada desde bytes de un canvas.
