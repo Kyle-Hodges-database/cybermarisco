@@ -15,4 +15,10 @@ En Windows:
 venv/bin/Activate.ps1
 ```
 
+
+```bash
+pip install -r requirements.txt
+```
+
+
 Ea a currar niños
