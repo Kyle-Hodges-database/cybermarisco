@@ -466,3 +466,15 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+class TooManyButtonsException(Exception):
+    def __innit__(self,actions, msg="Too many buttons."):
+        self.actions = actions
+        self.msg = msg
+        super().__init__(self.msg)
+
+def img_to_action(img):
+    action = find_game_action(img)
+    if(len(action) > 1):
+        raise TooManyButtonsException(action)
+    return action
