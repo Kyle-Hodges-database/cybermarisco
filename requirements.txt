@@ -34,7 +34,7 @@ parameterized==0.9.0
 parse==1.22.3
 parse_type==0.6.6
 pdbp==1.8.3
-pillow==12.3.0
+pillow==13.0.0
 playwright==1.64.0
 pluggy==1.6.0
 psutil==7.2.2
